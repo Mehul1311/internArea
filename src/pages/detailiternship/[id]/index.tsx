@@ -172,7 +172,14 @@ export default function InternshipDetailPage() {
 
           <div className="p-8 flex justify-center bg-gray-50">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                if (!reduxUser?.id) {
+                  toast.error("Please login to apply");
+                  router.push('/login');
+                  return;
+                }
+                setIsModalOpen(true);
+              }}
               className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-base px-10 py-3.5 rounded-2xl transition shadow-lg shadow-blue-500/20"
             >
               Apply Now

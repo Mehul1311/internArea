@@ -84,10 +84,10 @@ export default function ForgotPasswordPage() {
           {result && (
             <div className="mt-6 p-5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 animate-fadeIn">
               <div className="flex items-center gap-2 mb-2 text-emerald-700 font-bold text-sm">
-                <CheckCircle2 size={20} /> Reset Link Sent!
+                <CheckCircle2 size={20} /> New Password Sent!
               </div>
               <p className="text-xs text-emerald-700 mb-3">
-                Please check your email. We have sent a password reset link to your registered email address.
+                {result.message || "Please check your email. We have generated a new password and sent it to your registered email address."}
               </p>
             </div>
           )}

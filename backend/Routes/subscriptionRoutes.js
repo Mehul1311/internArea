@@ -40,6 +40,17 @@ router.post('/', async (req, res) => {
     const user = await getUserIdByUsername(username);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    // Enforce 10:00 AM to 11:00 AM IST payment window
+    const now = new Date();
+    const utcHour = now.getUTCHours();
+    const utcMinute = now.getUTCMinutes();
+    const totalMinutes = utcHour * 60 + utcMinute + 330; // 5 hours 30 mins
+    const istHour = Math.floor(totalMinutes / 60) % 24;
+    
+    if (istHour !== 10) {
+      return res.status(403).json({ error: 'Subscription payments are only allowed between 10:00 AM and 11:00 AM IST.' });
+    }
+
     const planRes = await query('SELECT * FROM plans WHERE id = $1', [planId]);
     if (planRes.rows.length === 0) return res.status(404).json({ error: 'Plan not found' });
     const plan = planRes.rows[0];

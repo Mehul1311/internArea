@@ -114,7 +114,30 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Chrome OTP Rule
+    const isChrome = context.browser && context.browser.toLowerCase().includes('chrome');
+    if (isChrome) {
+      await generateAndSendOTP(user.id, user.username, 'login');
+      return res.status(200).json({
+        requires_otp: true,
+        message: 'Security rule: Chrome logins require OTP verification sent to your registered email.'
+      });
+    }
 
+    // Mobile Time Window Rule (10 AM to 1 PM IST)
+    if (context.deviceType === 'mobile') {
+      const now = new Date();
+      // Calculate IST hour
+      const utcHour = now.getUTCHours();
+      const utcMinute = now.getUTCMinutes();
+      const totalMinutes = utcHour * 60 + utcMinute + 330; // 5 hours 30 mins
+      const istHour = Math.floor(totalMinutes / 60) % 24;
+      
+      if (istHour < 10 || istHour >= 13) {
+        await logAttempt(user.id, context, 'failed', 'blocked outside time window for mobile');
+        return res.status(403).json({ error: 'Mobile logins are only allowed between 10:00 AM and 1:00 PM IST.' });
+      }
+    }
 
     // Login complete
     await completeLogin(user, context, res);
@@ -268,66 +291,66 @@ router.post('/forgot-password', [
     }
     const user = userRes.rows[0];
 
+    // Check once per day limit
+    if (user.last_password_reset_request_at) {
+      const lastReset = new Date(user.last_password_reset_request_at);
+      const today = new Date();
+      if (lastReset.toDateString() === today.toDateString()) {
+        return res.status(429).json({ error: 'You can use this option only once per day.' });
+      }
+    }
 
+    // Generate random password (only uppercase and lowercase letters)
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let newPassword = '';
+    for (let i = 0; i < 10; i++) {
+      newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
 
-    // Generate token
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+    // Hash and update
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
 
     await query(
-      'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-      [user.id, tokenHash, expiresAt]
+      'UPDATE users SET password_hash = $1, last_password_reset_request_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [passwordHash, user.id]
     );
 
-    await query(
-      'UPDATE users SET last_password_reset_request_at = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
-    );
-
-    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-    const resetLink = `${clientUrl}/reset-password?token=${rawToken}`;
-    console.log(`\n\n=== PASSWORD RESET LINK ===\n${resetLink}\n===========================\n\n`);
-
-    // Send the reset link via email
+    // Send the cleartext password via email
     try {
       await resend.emails.send({
         from: 'InternArea <onboarding@resend.dev>',
         to: [user.username],
-        subject: 'Reset Your InternArea Password',
+        subject: 'Your New InternArea Password',
         html: `
-          <div style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+          <div style="font-family: 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden;">
             <div style="background-color: #2563eb; padding: 32px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 0.5px;">InternArea</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 900;">InternArea</h1>
             </div>
             <div style="padding: 40px 32px; background-color: #ffffff;">
-              <h2 style="color: #111827; font-size: 22px; font-weight: 800; margin-top: 0; margin-bottom: 16px;">Password Reset Request</h2>
+              <h2 style="color: #111827; font-size: 22px; font-weight: 800; margin-top: 0; margin-bottom: 16px;">Password Reset Successful</h2>
               <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
-                We received a request to reset your password for your <strong>InternArea</strong> account. Click the button below to securely set a new password.
+                We have generated a new, secure password for your account. Please use the password below to log in:
               </p>
               <div style="text-align: center; margin-bottom: 32px;">
-                <a href="${resetLink}" style="display: inline-block; background-color: #2563eb; color: #ffffff; font-weight: 700; font-size: 16px; text-decoration: none; padding: 14px 28px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);">
-                  Reset Password
-                </a>
+                <span style="display: inline-block; background-color: #f3f4f6; color: #111827; font-weight: 700; font-size: 24px; letter-spacing: 2px; padding: 14px 28px; border-radius: 12px; border: 2px dashed #d1d5db;">
+                  ${newPassword}
+                </span>
               </div>
               <p style="color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 0;">
-                If you didn't request this, you can safely ignore this email. Your password will not change until you create a new one.<br/><br/>
-                <em>This secure link will expire in 1 hour.</em>
+                For your security, we recommend changing this password from your profile settings once you log in.
               </p>
-            </div>
-            <div style="background-color: #f9fafb; padding: 24px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="color: #9ca3af; font-size: 13px; margin: 0; font-weight: 500;">&copy; ${new Date().getFullYear()} InternArea. All rights reserved.</p>
             </div>
           </div>
         `,
       });
     } catch (e) {
-      console.error("Email send failed (check your RESEND_API_KEY):", e.message);
+      console.error("Email send failed:", e.message);
     }
 
     return res.status(200).json({ 
       success: true, 
-      message: 'A password reset link has been sent to your email.'
+      message: 'A new password has been generated and sent to your email.'
     });
 
   } catch (err) {

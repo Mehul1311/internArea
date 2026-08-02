@@ -27,8 +27,22 @@ export default function ResumeBuilderPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    checkPremiumStatus();
     fetchExistingResume();
   }, []);
+
+  const checkPremiumStatus = async () => {
+    try {
+       const userRes = await apiClient.get('/auth/me');
+       const statusRes = await apiClient.get('/subscribe/status/' + userRes.data.username);
+       if (statusRes.data.plan_name === 'Free') {
+          toast.error("Resume Builder is a Premium feature. Please upgrade your plan to access it.");
+          setTimeout(() => window.location.href = '/subscribe', 3000);
+       }
+    } catch (e) {
+       window.location.href = '/login';
+    }
+  };
 
   const fetchExistingResume = async () => {
     try {

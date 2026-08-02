@@ -10,6 +10,17 @@ export const apiClient = axios.create({
     withCredentials: true, // Crucial for sending/receiving HTTP-only cookies
 });
 
+// Request Interceptor to attach the token if available
+apiClient.interceptors.request.use((config) => {
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return config;
+});
+
 // Interceptor to handle 401 Unauthorized and auto-refresh the token
 apiClient.interceptors.response.use(
     (response) => response,

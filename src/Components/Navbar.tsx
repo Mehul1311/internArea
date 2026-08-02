@@ -75,6 +75,7 @@ const Navbar = () => {
       await auth.signOut();
     } catch (e) {}
     localStorage.removeItem('app_user');
+    localStorage.removeItem('access_token');
     dispatch(logout());
     setLocalUser(null);
     toast.success('Logged out successfully');

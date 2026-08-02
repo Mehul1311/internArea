@@ -28,7 +28,7 @@ export default function JobListingPage() {
         ...(filter.category && { category: filter.category }),
         ...(filter.location && { location: filter.location })
       });
-      const response = await apiClient.get(`/external/jobs?${queryParams.toString()}`);
+      const response = await apiClient.get(`/job?${queryParams.toString()}`);
       const data = response.data.data.map((job: any) => ({
         id: job._id || job.id,
         company: job.company,

@@ -75,8 +75,8 @@ export default function SvgSlider() {
       });
       
       const [internshipRes, jobRes] = await Promise.all([
-        apiClient.get(`/external/internships?${queryParams.toString()}`),
-        apiClient.get(`/external/jobs?${queryParams.toString()}`),
+        apiClient.get(`/internships?${queryParams.toString()}`),
+        apiClient.get(`/job?${queryParams.toString()}`),
       ]);
       
       const rawInternships = internshipRes.data;
@@ -113,7 +113,7 @@ export default function SvgSlider() {
         ...(selectedCategory !== "All Categories" && { category: selectedCategory }),
         ...(searchQuery && { search: searchQuery })
       });
-      const res = await apiClient.get(`/external/internships?${queryParams.toString()}`);
+      const res = await apiClient.get(`/internships?${queryParams.toString()}`);
       setInternship(prev => [...prev, ...(res.data?.data || [])]);
       setInternshipPage(nextPage);
       setHasMoreInternships(nextPage < (res.data?.totalPages || 1));
@@ -134,7 +134,7 @@ export default function SvgSlider() {
         ...(selectedCategory !== "All Categories" && { category: selectedCategory }),
         ...(searchQuery && { search: searchQuery })
       });
-      const res = await apiClient.get(`/external/jobs?${queryParams.toString()}`);
+      const res = await apiClient.get(`/job?${queryParams.toString()}`);
       setJob(prev => [...prev, ...(res.data?.data || [])]);
       setJobPage(nextPage);
       setHasMoreJobs(nextPage < (res.data?.totalPages || 1));

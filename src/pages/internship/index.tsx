@@ -29,7 +29,7 @@ export default function InternshipListingPage() {
         ...(filter.category && { category: filter.category }),
         ...(filter.location && { location: filter.location })
       });
-      const response = await apiClient.get(`/external/internships?${queryParams.toString()}`);
+      const response = await apiClient.get(`/internships?${queryParams.toString()}`);
       const data = response.data.data.map((internship: any) => ({
         id: internship.id || internship._id,
         company: internship.company || internship.company_name,

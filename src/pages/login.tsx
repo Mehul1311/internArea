@@ -4,7 +4,7 @@ import { apiClient } from '../api/axios';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
 import { Lock, ShieldAlert, ToggleLeft, ToggleRight, ArrowRight } from 'lucide-react';
-import { auth, provider, signInWithPopup } from '../firebase/firebase';
+import { auth, provider, signInWithPopup, signInWithEmailAndPassword } from '../firebase/firebase';
 import { useDispatch } from 'react-redux';
 import { login as loginAction } from '../Feature/Userslice';
 
@@ -44,17 +44,18 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await apiClient.post('/auth/verify-login-otp', {
+      await apiClient.post('/auth/verify-login-otp', {
         username: otpUsername,
         otp: otpCode
       });
       toast.success('🎉 Login successful!');
-      if (res.data.token) {
-        localStorage.setItem('access_token', res.data.token);
+      
+      // Fetch the finalized user data now that OTP is verified
+      const userRes = await apiClient.get('/auth/me');
+      if (userRes.data) {
+        handleLoginSuccess(userRes.data);
       }
-      if (res.data.user) {
-        handleLoginSuccess(res.data.user);
-      }
+      
       router.push('/profile');
     } catch (err: any) {
       toast.error(`⚠️ ${err.response?.data?.error || 'OTP verification failed'}`, { autoClose: 6000 });
@@ -68,9 +69,14 @@ export default function Login() {
     setLoading(true);
     
     try {
-      const res = await apiClient.post('/auth/login', {
-        ...formData
-      });
+      // 1. Sign in with Firebase Auth
+      const result = await signInWithEmailAndPassword(auth, formData.username, formData.password);
+      
+      // 2. Wait for the token to be available (axios interceptor handles sending it)
+      await result.user.getIdToken(true);
+
+      // 3. Call backend to sync user and check security rules (Chrome OTP, Mobile time limits)
+      const res = await apiClient.get('/auth/me?login_attempt=true');
 
       if (res.data.requires_otp) {
         toast.info(res.data.message || 'OTP sent to your email.');
@@ -80,16 +86,19 @@ export default function Login() {
       }
 
       toast.success('🎉 Login successful!');
-      if (res.data.token) {
-        localStorage.setItem('access_token', res.data.token);
-      }
-      if (res.data.user) {
-        handleLoginSuccess(res.data.user);
+      if (res.data.user || res.data.id) {
+        handleLoginSuccess(res.data.user || res.data);
       }
       router.push('/profile');
     } catch (err: any) {
-      const errMsg = err.response?.data?.error || 'Login failed';
-      toast.error(`⚠️ ${errMsg}`, { autoClose: 6000 });
+      // If backend blocked it (e.g. 403 Mobile limit) or OTP was required but failed
+      if (err.response?.status === 403) {
+        toast.error(`⚠️ ${err.response.data.error}`, { autoClose: 6000 });
+        await auth.signOut();
+      } else {
+        const errMsg = err.response?.data?.error || err.message || 'Login failed';
+        toast.error(`⚠️ ${errMsg}`, { autoClose: 6000 });
+      }
     } finally {
       setLoading(false);
     }
@@ -99,24 +108,34 @@ export default function Login() {
     try {
       setLoading(true);
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
       
-      const userData = {
-        id: user.uid,
-        uid: user.uid,
-        username: user.email,
-        email: user.email,
-        name: user.displayName,
-        photo: user.photoURL,
-        role: 'student'
-      };
+      // 1. Wait for token
+      await result.user.getIdToken(true);
 
-      handleLoginSuccess(userData);
-      toast.success(`🎉 Welcome ${user.displayName || 'User'}! Signed in with Google.`);
+      // 2. Sync with backend
+      const res = await apiClient.get('/auth/me?login_attempt=true');
+
+      if (res.data.requires_otp) {
+        toast.info(res.data.message || 'OTP sent to your email.');
+        // We use the email from the Google user for OTP
+        setOtpUsername(result.user.email || '');
+        setShowOtp(true);
+        return;
+      }
+
+      toast.success(`🎉 Welcome ${result.user.displayName || 'User'}! Signed in with Google.`);
+      if (res.data.user || res.data.id) {
+        handleLoginSuccess(res.data.user || res.data);
+      }
       router.push('/profile');
-    } catch (error: any) {
-      console.error("Google Sign In Error:", error);
-      toast.error(`Google Sign In failed: ${error.message}`);
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        toast.error(`⚠️ ${err.response.data.error}`, { autoClose: 6000 });
+        await auth.signOut();
+      } else {
+        console.error("Google Sign In Error:", err);
+        toast.error(`Google Sign In failed: ${err.message || 'Unknown error'}`);
+      }
     } finally {
       setLoading(false);
     }

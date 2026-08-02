@@ -10,40 +10,38 @@ export const apiClient = axios.create({
     withCredentials: true, // Crucial for sending/receiving HTTP-only cookies
 });
 
-// Request Interceptor to attach the token if available
-apiClient.interceptors.request.use((config) => {
+import { auth } from '../firebase/firebase';
+
+// Request Interceptor to attach the Firebase token
+apiClient.interceptors.request.use(async (config) => {
     if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        try {
+            // Try getting the Firebase token if user is signed in
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+                // Get token, forcing refresh if necessary
+                const token = await currentUser.getIdToken();
+                config.headers.Authorization = `Bearer ${token}`;
+            } else {
+                // Fallback (for older local tokens if any still exist during migration)
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+            }
+        } catch (e) {
+            console.error("Error attaching Firebase token", e);
         }
     }
     return config;
 });
 
-// Interceptor to handle 401 Unauthorized and auto-refresh the token
+// Response Interceptor to handle 401s
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
-        
-        // If error is 401 and we haven't retried yet, and the url is not /auth/me or /auth/refresh
-        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/refresh')) {
-            originalRequest._retry = true;
-            
-            try {
-                // Try to refresh token
-                await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
-                
-                // If successful, retry the original request
-                return apiClient(originalRequest);
-            } catch (refreshError) {
-                // If refresh fails, it means the refresh token is also invalid/expired.
-                // We should let the application handle the logout instead of forcing a redirect.
-                return Promise.reject(refreshError);
-            }
-        }
-        
+        // Since Firebase automatically refreshes tokens in the background, 
+        // a 401 usually means the user is genuinely logged out or token is invalid.
         return Promise.reject(error);
     }
 );

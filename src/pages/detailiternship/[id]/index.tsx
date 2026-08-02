@@ -47,16 +47,18 @@ export default function InternshipDetailPage() {
       toast.error("Please write a cover letter");
       return;
     }
-    if (!reduxUser?.id) {
+    const stored = localStorage.getItem('app_user');
+    if (!reduxUser?.id && !stored) {
       toast.error("Please login to apply");
       router.push('/login');
       return;
     }
+    const finalUserId = reduxUser?.id || (stored ? JSON.parse(stored).id || JSON.parse(stored).uid : 1);
     try {
       setSubmitting(true);
       const res = await apiClient.post(`/applications/apply/${id}`, {
         cover_letter: coverLetter,
-        userId: reduxUser.id
+        userId: finalUserId
       });
       toast.success(res.data.message || "Application submitted successfully!");
       setIsModalOpen(false);
@@ -173,7 +175,8 @@ export default function InternshipDetailPage() {
           <div className="p-8 flex justify-center bg-gray-50">
             <button
               onClick={() => {
-                if (!reduxUser?.id) {
+                const stored = localStorage.getItem('app_user');
+                if (!reduxUser?.id && !stored) {
                   toast.error("Please login to apply");
                   router.push('/login');
                   return;

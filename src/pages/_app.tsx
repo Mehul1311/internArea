@@ -15,54 +15,49 @@ export default function App({ Component, pageProps }: AppProps) {
     const dispatch = useDispatch();
 
     useEffect(() => {
-      const restoreSession = async () => {
-        const storedUser = localStorage.getItem('app_user');
-        if (storedUser) {
+      const syncBackendUser = async (authuser: any) => {
+        if (authuser) {
           try {
-            const parsedUser = JSON.parse(storedUser);
-            dispatch(login(parsedUser));
-          } catch (e) {}
-        }
-
-        try {
-          const res = await apiClient.get('/auth/me');
-          if (res.data) {
-            const userData = {
-              id: res.data.id,
-              uid: res.data.id,
-              username: res.data.username,
-              email: res.data.username,
-              name: res.data.username?.split('@')[0],
-              phone: res.data.phone,
-              role_id: res.data.role_id,
-              photo: res.data.profile_picture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop"
-            };
-            localStorage.setItem('app_user', JSON.stringify(userData));
-            dispatch(login(userData));
-          }
-        } catch (err) {
-          if (!storedUser) {
+            // Because axios interceptor automatically attaches the Firebase token,
+            // this call will verify the Firebase token on the backend, 
+            // auto-create the user in Postgres if missing, and return the Postgres ID.
+            const res = await apiClient.get('/auth/me');
+            if (res.data) {
+              const userData = {
+                id: res.data.id, // Important: This is the Integer Postgres ID
+                uid: res.data.id,
+                username: res.data.username,
+                email: res.data.username,
+                name: authuser.displayName || res.data.username?.split('@')[0],
+                phone: res.data.phone || authuser.phoneNumber,
+                role_id: res.data.role_id,
+                photo: authuser.photoURL || res.data.profile_picture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop"
+              };
+              localStorage.setItem('app_user', JSON.stringify(userData));
+              dispatch(login(userData));
+            }
+          } catch (err) {
+            console.error("Failed to sync backend user:", err);
             dispatch(logout());
+            localStorage.removeItem('app_user');
           }
+        } else {
+          dispatch(logout());
+          localStorage.removeItem('app_user');
         }
       };
 
-      restoreSession();
+      // Restore initial session optimistically for fast rendering
+      const storedUser = localStorage.getItem('app_user');
+      if (storedUser) {
+        try {
+          dispatch(login(JSON.parse(storedUser)));
+        } catch (e) {}
+      }
 
       const unsubscribe = auth.onAuthStateChanged((authuser) => {
-        if (authuser) {
-          const fbUser = {
-            id: authuser.uid,
-            uid: authuser.uid,
-            photo: authuser.photoURL,
-            name: authuser.displayName,
-            email: authuser.email,
-            username: authuser.email,
-            phoneNumber: authuser.phoneNumber,
-          };
-          localStorage.setItem('app_user', JSON.stringify(fbUser));
-          dispatch(login(fbUser));
-        }
+        // Automatically sync with backend when Firebase auth state changes
+        syncBackendUser(authuser);
       });
 
       return () => unsubscribe();

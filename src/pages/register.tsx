@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { apiClient } from '../api/axios';
 import { toast } from 'react-toastify';
 import Link from 'next/link';
-import { auth, provider, signInWithPopup } from '../firebase/firebase';
+import { auth, provider, signInWithPopup, createUserWithEmailAndPassword } from '../firebase/firebase';
 import { useDispatch } from 'react-redux';
 import { login as loginAction } from '../Feature/Userslice';
 
@@ -27,11 +27,21 @@ export default function Register() {
     setLoading(true);
     
     try {
-      await apiClient.post('/auth/register', formData);
-      toast.success('Registration successful! Please login.');
-      router.push('/login');
+      // 1. Create user in Firebase
+      await createUserWithEmailAndPassword(auth, formData.username, formData.password);
+      
+      // 2. Call backend to sync user (passing role and phone if they don't exist yet)
+      // Since they just created the account, the backend will auto-create the user record
+      // We can pass the role and phone as query params or custom endpoint, but /auth/me auto-creates them.
+      // A better way is to update the newly created user in our db right after if needed, 
+      // but for now, logging them in takes them to /profile where they can update details.
+      await auth.currentUser?.getIdToken(true);
+      await apiClient.get(`/auth/me?login_attempt=true&role=${formData.role}&phone=${encodeURIComponent(formData.phone)}`);
+
+      toast.success('Registration successful! Please complete your profile.');
+      router.push('/profile');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to register');
+      toast.error(`⚠️ ${err.message || 'Failed to register'}`);
     } finally {
       setLoading(false);
     }

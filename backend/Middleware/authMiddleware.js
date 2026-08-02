@@ -1,8 +1,10 @@
 const jwt = require("jsonwebtoken");
 const { query } = require("../pg_db");
 
+const { auth } = require('../firebaseAdmin');
+
 /**
- * Verify JWT Token from Cookie
+ * Verify Firebase ID Token
  */
 async function verifyToken(req, res, next) {
     try {
@@ -15,26 +17,55 @@ async function verifyToken(req, res, next) {
             return res.status(401).json({ error: "Access denied. No token provided." });
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        // Verify Firebase Token
+        let decoded;
+        try {
+            decoded = await auth.verifyIdToken(token);
+        } catch (fbErr) {
+            console.error("Firebase verify error:", fbErr.message);
+            return res.status(401).json({ error: "Invalid Firebase token.", expired: fbErr.code === 'auth/id-token-expired' });
+        }
         
-        const userRes = await query(`
+        const email = decoded.email || decoded.uid; // Fallback to uid if no email
+
+        let userRes = await query(`
             SELECT u.id, u.username, u.profile_picture, r.name as role 
             FROM users u
             JOIN roles r ON u.role_id = r.id
-            WHERE u.id = $1
-        `, [decoded.id]);
+            WHERE u.username = $1
+        `, [email]);
 
+        // Auto-create user in Postgres if they signed up via Firebase but don't exist in DB
         if (userRes.rows.length === 0) {
-            return res.status(401).json({ error: "Invalid token. User not found." });
+            let roleId = 1; // Default to student
+            if (req.query.role === 'employer') {
+                roleId = 2; // Employer role
+            }
+            const phone = req.query.phone || '';
+
+            const newUser = await query(
+                'INSERT INTO users (username, password_hash, role_id, phone) VALUES ($1, $2, $3, $4) RETURNING id',
+                [email, 'firebase_oauth_no_password', roleId, phone]
+            );
+            
+            // If employer, auto-create company
+            if (roleId === 2) {
+                await query('INSERT INTO companies (user_id, name) VALUES ($1, $2)', [newUser.rows[0].id, email.split('@')[0] + "'s Company"]);
+            }
+
+            userRes = await query(`
+                SELECT u.id, u.username, u.profile_picture, r.name as role 
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE u.id = $1
+            `, [newUser.rows[0].id]);
         }
 
         req.user = userRes.rows[0];
         next();
     } catch (err) {
-        if (err.name === 'TokenExpiredError') {
-            return res.status(401).json({ error: "Token expired", expired: true });
-        }
-        return res.status(400).json({ error: "Invalid token." });
+        console.error("Auth middleware error:", err);
+        return res.status(500).json({ error: "Internal server error during authentication." });
     }
 }
 

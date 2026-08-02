@@ -243,13 +243,53 @@ router.post('/logout', async (req, res) => {
 
 /**
  * GET /api/auth/me
+ * Also handles login rules (OTP, Time Window) since Firebase handles the raw auth.
  */
 router.get('/me', verifyToken, async (req, res) => {
   try {
-    const userRes = await query('SELECT id, username, phone, role_id, profile_picture, preferred_language, created_at FROM users WHERE id = $1', [req.user.id]);
+    const context = parseLoginContext(req);
+    const userRes = await query('SELECT id, username, phone, role_id, profile_picture, preferred_language, created_at, otp_verified_at FROM users WHERE id = $1', [req.user.id]);
+    
     if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json(userRes.rows[0]);
+    const user = userRes.rows[0];
+
+    // Mobile Time Window Rule (10 AM to 1 PM IST)
+    if (context.deviceType === 'mobile') {
+      const now = new Date();
+      const utcHour = now.getUTCHours();
+      const utcMinute = now.getUTCMinutes();
+      const totalMinutes = utcHour * 60 + utcMinute + 330; // 5 hours 30 mins
+      const istHour = Math.floor(totalMinutes / 60) % 24;
+      
+      if (istHour < 10 || istHour >= 13) {
+        await logAttempt(user.id, context, 'failed', 'blocked outside time window for mobile');
+        return res.status(403).json({ error: 'Mobile logins are only allowed between 10:00 AM and 1:00 PM IST.' });
+      }
+    }
+
+    // Chrome OTP Rule
+    const isChrome = context.browser && context.browser.toLowerCase().includes('chrome');
+    if (isChrome) {
+      // Check if OTP was verified recently (e.g. within last 24 hours)
+      const otpVerifiedAt = user.otp_verified_at ? new Date(user.otp_verified_at).getTime() : 0;
+      const nowMs = new Date().getTime();
+      const hoursSinceVerified = (nowMs - otpVerifiedAt) / (1000 * 60 * 60);
+
+      // We only want to prompt OTP on initial session load or if it's been more than 24h
+      // But since we don't have session cookies, we check a query param or recent verification
+      if (hoursSinceVerified > 24 && req.query.login_attempt === 'true') {
+        await generateAndSendOTP(user.id, user.username, 'login');
+        return res.status(200).json({
+          requires_otp: true,
+          message: 'Security rule: Chrome logins require OTP verification sent to your registered email.'
+        });
+      }
+    }
+
+    await logAttempt(user.id, context, 'success');
+    res.json(user);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -307,7 +347,17 @@ router.post('/forgot-password', [
       newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    // Hash and update
+    // Update Firebase Auth password
+    try {
+      const { auth } = require('../firebaseAdmin');
+      const fbUser = await auth.getUserByEmail(user.username);
+      await auth.updateUser(fbUser.uid, { password: newPassword });
+    } catch (fbErr) {
+      console.error("Firebase update failed:", fbErr.message);
+      return res.status(400).json({ error: 'Failed to update Firebase user. Make sure user exists in Firebase.' });
+    }
+
+    // Hash and update in Postgres (for backup/history)
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 

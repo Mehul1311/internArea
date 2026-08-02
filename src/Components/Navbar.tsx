@@ -116,9 +116,11 @@ const Navbar = () => {
                 <Sparkles size={16} className="text-amber-500" />
                 <span>Plans</span>
               </Link>
-              <Link href="/applications" className="text-gray-700 hover:text-blue-600 font-medium text-sm transition">
-                My Applications
-              </Link>
+              {activeUser && (
+                <Link href="/applications" className="text-gray-700 hover:text-blue-600 font-medium text-sm transition">
+                  My Applications
+                </Link>
+              )}
               {/* Language Translate Button */}
               <div className="relative flex items-center bg-gray-50 hover:bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full border border-gray-200 hover:border-blue-200 transition-all shadow-sm h-[32px] w-[110px]">
                 <Globe size={14} className="absolute left-3 text-blue-600 pointer-events-none" />

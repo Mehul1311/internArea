@@ -36,34 +36,7 @@ export default function Login() {
     dispatch(loginAction(userToStore));
   };
 
-  const [showOtp, setShowOtp] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpUsername, setOtpUsername] = useState('');
-
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await apiClient.post('/auth/verify-login-otp', {
-        username: otpUsername,
-        otp: otpCode
-      });
-      toast.success('🎉 Login successful!');
-      
-      // Fetch the finalized user data now that OTP is verified
-      const userRes = await apiClient.get('/auth/me');
-      if (userRes.data) {
-        handleLoginSuccess(userRes.data);
-      }
-      
-      router.push('/profile');
-    } catch (err: any) {
-      toast.error(`⚠️ ${err.response?.data?.error || 'OTP verification failed'}`, { autoClose: 6000 });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // OTP logic removed as requested
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -78,12 +51,7 @@ export default function Login() {
       // 3. Call backend to sync user and check security rules (Chrome OTP, Mobile time limits)
       const res = await apiClient.get('/auth/me?login_attempt=true');
 
-      if (res.data.requires_otp) {
-        toast.info(res.data.message || 'OTP sent to your email.');
-        setOtpUsername(formData.username);
-        setShowOtp(true);
-        return;
-      }
+      // OTP requirement removed
 
       toast.success('🎉 Login successful!');
       if (res.data.user || res.data.id) {
@@ -115,13 +83,7 @@ export default function Login() {
       // 2. Sync with backend
       const res = await apiClient.get('/auth/me?login_attempt=true');
 
-      if (res.data.requires_otp) {
-        toast.info(res.data.message || 'OTP sent to your email.');
-        // We use the email from the Google user for OTP
-        setOtpUsername(result.user.email || '');
-        setShowOtp(true);
-        return;
-      }
+      // OTP requirement removed
 
       toast.success(`🎉 Welcome ${result.user.displayName || 'User'}! Signed in with Google.`);
       if (res.data.user || res.data.id) {
@@ -196,34 +158,6 @@ export default function Login() {
             <div className="flex-grow border-t border-gray-200"></div>
           </div>
 
-          {showOtp ? (
-            <form className="space-y-5" onSubmit={handleOtpSubmit}>
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-700 tracking-wider mb-1">
-                  Enter OTP sent to email
-                </label>
-                <input
-                  name="otp"
-                  type="text"
-                  required
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium tracking-[0.5em] text-center"
-                  placeholder="123456"
-                  maxLength={6}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm py-3.5 rounded-xl transition shadow-md shadow-blue-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {loading ? 'Verifying...' : 'Verify & Sign In'}
-                <ArrowRight size={18} />
-              </button>
-            </form>
-          ) : (
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-700 tracking-wider mb-1">
@@ -264,7 +198,6 @@ export default function Login() {
                 <ArrowRight size={18} />
               </button>
             </form>
-          )}
 
           <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-between text-xs">
             <Link href="/register" className="text-blue-600 font-bold hover:underline">

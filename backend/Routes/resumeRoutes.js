@@ -9,51 +9,15 @@ async function getUser(username) {
 }
 
 /**
- * POST /api/resume/request-payment-otp
- * Step 1: Send OTP to registered email before processing ₹50 payment
+ * POST /api/resume/save
+ * Directly save generated resume
  */
-router.post('/request-payment-otp', async (req, res) => {
-  const { username = 'student@example.com' } = req.body;
+router.post('/save', async (req, res) => {
+  const { username = 'student@example.com', resumeContent } = req.body;
 
   try {
     const user = await getUser(username);
     if (!user) return res.status(404).json({ error: 'User not found' });
-
-    await generateAndSendOTP(user.id, user.username, 'resume');
-
-    res.status(200).json({ 
-      requires_otp: true, 
-      message: 'OTP sent to your registered email for verifying resume payment.' 
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to send OTP' });
-  }
-});
-
-/**
- * POST /api/resume/verify-and-pay
- * Step 2: Verify OTP, process ₹50 payment & save generated resume
- */
-router.post('/verify-and-pay', async (req, res) => {
-  const { username = 'student@example.com', otp, resumeContent } = req.body;
-  if (!otp) return res.status(400).json({ error: 'OTP is required' });
-
-  try {
-    const user = await getUser(username);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    const isValid = await verifyOTP(user.id, otp, 'resume');
-    if (!isValid) return res.status(400).json({ error: 'Invalid or expired OTP. Use 123456 for test.' });
-
-    const orderId = `resume_order_${Date.now()}`;
-    const paymentId = `resume_pay_${Date.now()}`;
-
-    // Record ₹50 payment success
-    await query(
-      'INSERT INTO resume_payments (user_id, order_id, payment_id, amount, status) VALUES ($1, $2, $3, $4, $5)',
-      [user.id, orderId, paymentId, 50, 'success']
-    );
 
     // Save resume to DB
     const resumeJson = JSON.stringify(resumeContent || {});
@@ -61,8 +25,7 @@ router.post('/verify-and-pay', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'OTP verified successfully! ₹50 payment completed & resume generated and attached to your profile.',
-      paymentId,
+      message: 'Resume generated and attached to your profile successfully!',
       resume: resumeContent
     });
   } catch (error) {

@@ -1,22 +1,26 @@
 const admin = require('firebase-admin');
 
+const { getAuth } = require('firebase-admin/auth');
+
+let app;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({
+    app = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
     console.log("Firebase Admin initialized with service account.");
   } else {
-    // Attempt default initialization (works on GCP/Firebase environments or if GOOGLE_APPLICATION_CREDENTIALS is set)
-    admin.initializeApp();
-    console.log("Firebase Admin initialized with default credentials.");
+    // Attempt initialization with project ID for token verification (works without credentials in dev)
+    app = admin.initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'intern-clone'
+    });
+    console.log("Firebase Admin initialized with fallback projectId.");
   }
 } catch (error) {
   console.error("Firebase Admin initialization error:", error.message);
-  // Do not crash the server if initialization fails, just log it.
 }
 
-const auth = admin.auth();
+const auth = getAuth(app);
 
 module.exports = { admin, auth };

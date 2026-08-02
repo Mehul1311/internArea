@@ -267,24 +267,7 @@ router.get('/me', verifyToken, async (req, res) => {
       }
     }
 
-    // Chrome OTP Rule
-    const isChrome = context.browser && context.browser.toLowerCase().includes('chrome');
-    if (isChrome) {
-      // Check if OTP was verified recently (e.g. within last 24 hours)
-      const otpVerifiedAt = user.otp_verified_at ? new Date(user.otp_verified_at).getTime() : 0;
-      const nowMs = new Date().getTime();
-      const hoursSinceVerified = (nowMs - otpVerifiedAt) / (1000 * 60 * 60);
-
-      // We only want to prompt OTP on initial session load or if it's been more than 24h
-      // But since we don't have session cookies, we check a query param or recent verification
-      if (hoursSinceVerified > 24 && req.query.login_attempt === 'true') {
-        await generateAndSendOTP(user.id, user.username, 'login');
-        return res.status(200).json({
-          requires_otp: true,
-          message: 'Security rule: Chrome logins require OTP verification sent to your registered email.'
-        });
-      }
-    }
+    // Chrome OTP Rule removed as per user request
 
     await logAttempt(user.id, context, 'success');
     res.json(user);

@@ -62,8 +62,14 @@ function initSQLite() {
       resume_file_url TEXT,
       preferred_language TEXT DEFAULT 'en',
       last_password_reset_request_at DATETIME,
+      otp_verified_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Add column to existing local sqlite database if it doesn't have it yet
+    sqliteDb.run("ALTER TABLE users ADD COLUMN otp_verified_at DATETIME", (err) => {
+        // Will throw an error if column already exists, which we can safely ignore
+    });
 
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS refresh_tokens (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

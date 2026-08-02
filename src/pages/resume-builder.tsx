@@ -39,8 +39,12 @@ export default function ResumeBuilderPage() {
           toast.error("Resume Builder is a Premium feature. Please upgrade your plan to access it.");
           setTimeout(() => window.location.href = '/subscribe', 3000);
        }
-    } catch (e) {
-       window.location.href = '/login';
+    } catch (e: any) {
+       if (e.response && (e.response.status === 401 || e.response.status === 403)) {
+           window.location.href = '/login';
+       } else {
+           console.error("Premium check error:", e);
+       }
     }
   };
 

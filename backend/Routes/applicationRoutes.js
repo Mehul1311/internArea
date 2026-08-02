@@ -17,32 +17,19 @@ router.post('/apply/:internshipId', async (req, res) => {
         const existing = await query('SELECT id FROM applications WHERE internship_id = $1 AND student_id = $2', [internshipId, sId]);
         if (existing.rows.length > 0) return res.status(400).json({ error: 'You have already applied to this internship.' });
 
-        // 2. Subscription limit check
-        const subRes = await query(`
-            SELECT s.*, p.application_limit 
-            FROM subscriptions s
-            JOIN plans p ON s.plan_id = p.id
-            WHERE s.user_id = $1 AND s.status = 'active'
-            ORDER BY s.current_period_end DESC LIMIT 1
-        `, [sId]);
+        // 2. Daily Limit Check (5 per day)
+        const todayStart = new Date();
+        todayStart.setUTCHours(0, 0, 0, 0);
 
-        let appLimit = 1; // Default free plan limit = 1
-        let subId = null;
-        let appsUsed = 0;
+        const countRes = await query(
+            'SELECT COUNT(*) as count FROM applications WHERE student_id = $1 AND created_at >= $2', 
+            [sId, todayStart.toISOString()]
+        );
+        const appsToday = parseInt(countRes.rows[0].count, 10);
 
-        if (subRes.rows.length > 0) {
-            appLimit = subRes.rows[0].application_limit;
-            subId = subRes.rows[0].id;
-            appsUsed = subRes.rows[0].applications_used || 0;
-        } else {
-            // Count total applications made by free user
-            const countRes = await query('SELECT COUNT(*) as count FROM applications WHERE student_id = $1', [sId]);
-            appsUsed = parseInt(countRes.rows[0].count, 10);
-        }
-
-        if (appLimit !== null && appsUsed >= appLimit) {
+        if (appsToday >= 5) {
             return res.status(403).json({
-                error: `Plan application limit reached (${appLimit} per month). Please upgrade your subscription plan to apply for more internships!`,
+                error: 'Daily application limit reached (5 per day). Please try again tomorrow!',
                 limitReached: true
             });
         }
@@ -68,10 +55,7 @@ router.post('/apply/:internshipId', async (req, res) => {
             [internshipId, sId, finalResumeUrl, cover_letter || 'I am excited to apply for this role.']
         );
 
-        // Update applications_used in subscription if active
-        if (subId) {
-            await query('UPDATE subscriptions SET applications_used = applications_used + 1 WHERE id = $1', [subId]);
-        }
+
 
         res.status(201).json({ success: true, message: 'Application submitted successfully!', applicationId: result.rows[0].id });
     } catch (err) {
@@ -93,30 +77,19 @@ router.post('/apply-job/:jobId', async (req, res) => {
         const existing = await query('SELECT id FROM applications WHERE job_id = $1 AND student_id = $2', [jobId, sId]);
         if (existing.rows.length > 0) return res.status(400).json({ error: 'You have already applied to this job.' });
 
-        const subRes = await query(`
-            SELECT s.*, p.application_limit 
-            FROM subscriptions s
-            JOIN plans p ON s.plan_id = p.id
-            WHERE s.user_id = $1 AND s.status = 'active'
-            ORDER BY s.current_period_end DESC LIMIT 1
-        `, [sId]);
+        // Daily Limit Check (5 per day)
+        const todayStart = new Date();
+        todayStart.setUTCHours(0, 0, 0, 0);
 
-        let appLimit = 1;
-        let subId = null;
-        let appsUsed = 0;
+        const countRes = await query(
+            'SELECT COUNT(*) as count FROM applications WHERE student_id = $1 AND created_at >= $2', 
+            [sId, todayStart.toISOString()]
+        );
+        const appsToday = parseInt(countRes.rows[0].count, 10);
 
-        if (subRes.rows.length > 0) {
-            appLimit = subRes.rows[0].application_limit;
-            subId = subRes.rows[0].id;
-            appsUsed = subRes.rows[0].applications_used || 0;
-        } else {
-            const countRes = await query('SELECT COUNT(*) as count FROM applications WHERE student_id = $1', [sId]);
-            appsUsed = parseInt(countRes.rows[0].count, 10);
-        }
-
-        if (appLimit !== null && appsUsed >= appLimit) {
+        if (appsToday >= 5) {
             return res.status(403).json({
-                error: `Plan application limit reached (${appLimit} per month). Please upgrade your subscription plan to apply for more roles!`,
+                error: 'Daily application limit reached (5 per day). Please try again tomorrow!',
                 limitReached: true
             });
         }
@@ -136,9 +109,7 @@ router.post('/apply-job/:jobId', async (req, res) => {
             [jobId, sId, finalResumeUrl, cover_letter || 'I am excited to apply for this role.']
         );
 
-        if (subId) {
-            await query('UPDATE subscriptions SET applications_used = applications_used + 1 WHERE id = $1', [subId]);
-        }
+
 
         res.status(201).json({ success: true, message: 'Job application submitted successfully!', applicationId: result.rows[0].id });
     } catch (err) {

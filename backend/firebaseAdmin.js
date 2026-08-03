@@ -28,6 +28,10 @@ try {
   }
 } catch (error) {
   console.error("Firebase Admin initialization error:", error.message);
+  // Guarantee an app is initialized so getAuth() doesn't crash the entire auth flow
+  app = initializeApp({
+    projectId: process.env.FIREBASE_PROJECT_ID || 'intern-clone'
+  });
 }
 
 const auth = getAuth(app);

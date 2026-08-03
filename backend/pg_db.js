@@ -314,14 +314,25 @@ pgPool.connect((err, client, release) => {
   }
 });
 
-/**
- * Execute SQL query with parameter normalization for SQLite / Postgres
- */
 function query(sqlText, params = []) {
-  if (!useSQLite && pgPool) {
-    return pgPool.query(sqlText, params);
+  // On Vercel, force SQLite immediately if PG_DATABASE_URL is missing or is localhost
+  if (process.env.VERCEL && (!process.env.PG_DATABASE_URL || process.env.PG_DATABASE_URL.includes('localhost'))) {
+    useSQLite = true;
   }
 
+  if (!useSQLite && pgPool) {
+    return pgPool.query(sqlText, params).catch(err => {
+        // If Postgres fails during execution (e.g. cold start race condition), fallback to SQLite for this query
+        console.warn("Postgres query failed, falling back to SQLite. Error:", err.message);
+        useSQLite = true;
+        return executeSQLite(sqlText, params);
+    });
+  }
+
+  return executeSQLite(sqlText, params);
+}
+
+function executeSQLite(sqlText, params = []) {
   return new Promise((resolve, reject) => {
     if (!sqliteDb) {
       initSQLite();

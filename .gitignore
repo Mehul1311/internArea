@@ -1,6 +1,5 @@
 node_modules/
 .next/
 backend/node_modules/
-backend/internshala.sqlite
 backend/.env
 .env.local

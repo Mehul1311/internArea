@@ -69,10 +69,14 @@ export default function Register() {
       const result = await signInWithPopup(auth, provider);
       
       // 1. Wait for token
-      await result.user.getIdToken(true);
+      const token = await result.user.getIdToken(true);
 
-      // 2. Sync with backend
-      const res = await apiClient.get(`/auth/me?role=${formData.role}`);
+      // 2. Sync with backend explicitly passing the token
+      const res = await apiClient.get(`/auth/me?role=${formData.role}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       
       toast.success(`🎉 Account created with Google! Welcome ${result.user.displayName || 'User'}`);
       if (res.data) {
@@ -81,7 +85,9 @@ export default function Register() {
       router.push('/profile');
     } catch (error: any) {
       console.error("Google Sign Up Error:", error);
-      toast.error(`Google Sign Up failed: ${error.message}`);
+      const errMsg = error.response?.data?.error || error.message || 'Unknown error';
+      toast.error(`Google Sign Up failed: ${errMsg}`);
+      await auth.signOut();
     } finally {
       setLoading(false);
     }

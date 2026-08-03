@@ -69,11 +69,16 @@ export default function Login() {
       setLoading(true);
       const result = await signInWithPopup(auth, provider);
       
-      // 1. Wait for token
-      await result.user.getIdToken(true);
+      // 1. Wait for token explicitly
+      const token = await result.user.getIdToken(true);
 
-      // 2. Sync with backend
-      const res = await apiClient.get('/auth/me');
+      // 2. Sync with backend explicitly passing the token 
+      // (sometimes auth.currentUser is not updated immediately for interceptor)
+      const res = await apiClient.get('/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
 
       toast.success(`🎉 Welcome ${result.user.displayName || 'User'}! Signed in with Google.`);
       if (res.data) {
@@ -82,7 +87,9 @@ export default function Login() {
       router.push('/profile');
     } catch (err: any) {
       console.error("Google Sign In Error:", err);
-      toast.error(`Google Sign In failed: ${err.message || 'Unknown error'}`);
+      // Detailed error for debugging network issues vs firebase issues
+      const errMsg = err.response?.data?.error || err.message || 'Unknown error';
+      toast.error(`Google Sign In failed: ${errMsg}`);
       await auth.signOut();
     } finally {
       setLoading(false);

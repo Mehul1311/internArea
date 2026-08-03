@@ -167,11 +167,11 @@ const index = () => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {application.company}
+                            {application.company_name || application.company}
                           </div>
                           <div className="flex items-center text-sm text-gray-500">
                             <Tag className="h-4 w-4 mr-1" />
-                            {application.category}
+                            {application.title || application.category}
                           </div>
                         </div>
                       </div>
@@ -183,10 +183,10 @@ const index = () => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {application.user.name}
+                            {application.user?.name || user?.name || "Applicant"}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {application.user.email}
+                            {application.user?.email || user?.email || ""}
                           </div>
                         </div>
                       </div>
@@ -195,9 +195,9 @@ const index = () => {
                       <div className="flex items-center text-sm text-gray-500">
                         <Calendar className="h-4 w-4 mr-1" />
                         {
-                          new Date(application.createdAt)
+                          application.createdAt || application.created_at ? new Date(application.createdAt || application.created_at)
                             .toISOString()
-                            .split("T")[0]
+                            .split("T")[0] : "N/A"
                         }
                       </div>
                     </td>

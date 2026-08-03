@@ -19,6 +19,14 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     if (!id) return;
+    
+    const stored = localStorage.getItem('app_user');
+    if (!reduxUser?.id && !stored) {
+      toast.error("Please login to view details and apply");
+      router.push('/login');
+      return;
+    }
+
     const fetchData = async () => {
       try {
         const res = await apiClient.get(`/external/detail/${id}`);
@@ -39,7 +47,7 @@ export default function JobDetailPage() {
       }
     };
     fetchData();
-  }, [id]);
+  }, [id, reduxUser, router]);
 
   const handleSubmitApplication = async () => {
     if (!coverLetter.trim()) {

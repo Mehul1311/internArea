@@ -74,7 +74,7 @@ export default function Feed() {
             <div key={internship.id} className="bg-white p-6 rounded-lg shadow border border-gray-200 flex justify-between items-start">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{internship.title}</h2>
-                <p className="text-gray-600 mt-1">{internship.company_name}</p>
+                <p className="text-gray-600 mt-1">{internship.company_name || internship.company}</p>
                 <div className="flex gap-4 mt-4 text-sm text-gray-500">
                   <span className="flex items-center gap-1">📍 {internship.location}</span>
                   <span className="flex items-center gap-1">💰 {internship.stipend}</span>

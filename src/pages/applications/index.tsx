@@ -52,9 +52,9 @@ export default function ApplicationsPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="border-b border-gray-200 p-8">
-            <h1 className="text-2xl font-extrabold text-gray-900">My Internship Applications</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">My Applications</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Track the status of your applied internships and view application responses.
+              Track the status of your applied internships and jobs, and view application responses.
             </p>
           </div>
 
@@ -116,8 +116,8 @@ export default function ApplicationsPage() {
                             <Building2 size={20} />
                           </div>
                           <div>
-                            <div className="text-sm font-bold text-gray-900">{app.title || 'Internship Role'}</div>
-                            <div className="text-xs text-gray-500 font-medium">{app.company_name} • {app.location}</div>
+                            <div className="text-sm font-bold text-gray-900">{app.title || app.category || 'Internship Role'}</div>
+                            <div className="text-xs text-gray-500 font-medium">{app.company_name || app.company || 'Company Name'} • {app.location || 'Location'}</div>
                           </div>
                         </div>
                       </td>

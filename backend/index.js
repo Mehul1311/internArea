@@ -66,11 +66,11 @@ app.use(express.json());
 app.get("/", (req, res) => res.send("Internshala Backend is running with production-grade security and embedded SQLite fallback."));
 app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
 
-const otpRoutes = require("./Routes/otp");
+
 
 app.use("/api", router);
 app.use("/api/community", communityRoutes);
-app.use("/api/otp", otpRoutes);
+
 app.use("/", router);
 app.use("/community", communityRoutes);
 

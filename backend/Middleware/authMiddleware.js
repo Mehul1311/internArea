@@ -1,6 +1,4 @@
-const jwt = require("jsonwebtoken");
 const { query } = require("../pg_db");
-
 const { auth } = require('../firebaseAdmin');
 
 /**
@@ -8,13 +6,13 @@ const { auth } = require('../firebaseAdmin');
  */
 async function verifyToken(req, res, next) {
     try {
-        let token = req.cookies ? req.cookies.access_token : null;
-        if (!token && req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+        let token = null;
+        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
             token = req.headers.authorization.split(" ")[1];
         }
 
         if (!token) {
-            return res.status(401).json({ error: "Access denied. No token provided." });
+            return res.status(401).json({ error: "Access denied. No Firebase token provided." });
         }
 
         // Verify Firebase Token
@@ -44,8 +42,8 @@ async function verifyToken(req, res, next) {
             const phone = req.query.phone || '';
 
             const newUser = await query(
-                'INSERT INTO users (username, password_hash, role_id, phone) VALUES ($1, $2, $3, $4) RETURNING id',
-                [email, 'firebase_oauth_no_password', roleId, phone]
+                'INSERT INTO users (username, role_id, phone) VALUES ($1, $2, $3) RETURNING id',
+                [email, roleId, phone]
             );
             
             // If employer, auto-create company

@@ -22,12 +22,6 @@ apiClient.interceptors.request.use(async (config) => {
                 // Get token, forcing refresh if necessary
                 const token = await currentUser.getIdToken();
                 config.headers.Authorization = `Bearer ${token}`;
-            } else {
-                // Fallback (for older local tokens if any still exist during migration)
-                const token = localStorage.getItem('access_token');
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
             }
         } catch (e) {
             console.error("Error attaching Firebase token", e);

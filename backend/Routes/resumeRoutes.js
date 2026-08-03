@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../pg_db');
-const { generateAndSendOTP, verifyOTP } = require('../utils/otpService');
+
 
 async function getUser(username) {
   const res = await query('SELECT * FROM users WHERE username = $1 OR phone = $1 OR id = $1', [username]);

@@ -56,13 +56,10 @@ function initSQLite() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       phone TEXT,
-      password_hash TEXT NOT NULL,
       role_id INTEGER DEFAULT 1,
       profile_picture TEXT,
       resume_file_url TEXT,
       preferred_language TEXT DEFAULT 'en',
-      last_password_reset_request_at DATETIME,
-      otp_verified_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     
@@ -71,13 +68,7 @@ function initSQLite() {
         // Will throw an error if column already exists, which we can safely ignore
     });
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS refresh_tokens (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      token TEXT NOT NULL,
-      expires_at DATETIME NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+
 
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS companies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,32 +163,7 @@ function initSQLite() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS otps (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      context TEXT NOT NULL,
-      otp_hash TEXT NOT NULL,
-      expires_at DATETIME NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS otp_rate_limits (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      request_time DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS login_attempts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      browser TEXT,
-      os TEXT,
-      device_type TEXT,
-      ip_address TEXT,
-      status TEXT,
-      block_reason TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
 
     sqliteDb.run(`CREATE TABLE IF NOT EXISTS resumes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -254,13 +220,7 @@ function initSQLite() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS password_resets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      token_hash TEXT NOT NULL,
-      expires_at DATETIME NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+
 
     // Add Performance Indexes
     sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category)`);
@@ -295,22 +255,17 @@ function seedSQLiteData() {
   // Seed Default Users if none exist
   sqliteDb.get("SELECT COUNT(*) as count FROM users", async (err, row) => {
     if (row && row.count === 0) {
-      const defaultPasswordHash = await bcrypt.hash('password123', 10);
-      
       // Student user
       sqliteDb.run(
-        "INSERT INTO users (id, username, phone, password_hash, role_id) VALUES (1, 'student@example.com', '9876543210', ?, 1)",
-        [defaultPasswordHash]
+        "INSERT INTO users (id, username, phone, role_id) VALUES (1, 'student@example.com', '9876543210', 1)"
       );
       // Employer user
       sqliteDb.run(
-        "INSERT INTO users (id, username, phone, password_hash, role_id) VALUES (2, 'employer@google.com', '9876543211', ?, 2)",
-        [defaultPasswordHash]
+        "INSERT INTO users (id, username, phone, role_id) VALUES (2, 'employer@google.com', '9876543211', 2)"
       );
       // Admin user
       sqliteDb.run(
-        "INSERT INTO users (id, username, phone, password_hash, role_id) VALUES (3, 'admin@internshala.com', '9876543212', ?, 3)",
-        [defaultPasswordHash]
+        "INSERT INTO users (id, username, phone, role_id) VALUES (3, 'admin@internshala.com', '9876543212', 3)"
       );
 
       // Companies

@@ -30,12 +30,27 @@ apiClient.interceptors.request.use(async (config) => {
     return config;
 });
 
-// Response Interceptor to handle 401s
+// Response Interceptor to handle 401s and Network Errors
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
-        // Since Firebase automatically refreshes tokens in the background, 
-        // a 401 usually means the user is genuinely logged out or token is invalid.
+        if (error.message === 'Network Error') {
+            console.error('Network Error Details:', {
+                url: error.config?.url,
+                baseURL: error.config?.baseURL,
+                method: error.config?.method
+            });
+            const fullUrl = `${error.config?.baseURL || ''}${error.config?.url || ''}`;
+            if (fullUrl.includes('localhost')) {
+                error.message = `Network Error: Tried to connect to local backend (${fullUrl}) from deployed site. Please update NEXT_PUBLIC_API_URL in Vercel to your deployed backend URL.`;
+            } else if (fullUrl.startsWith('http:')) {
+                error.message = `Network Error: Mixed Content blocked. Cannot fetch ${fullUrl} over HTTP from an HTTPS site. Please use HTTPS for backend URL.`;
+            } else if (error.config?.baseURL === '/api') {
+                error.message = `Network Error: NEXT_PUBLIC_API_URL is missing in Vercel. Tried hitting ${fullUrl}. Please configure it.`;
+            } else {
+                error.message = `Network Error: Backend at ${fullUrl} is unreachable or blocked by CORS. Make sure the backend is running and allows this domain.`;
+            }
+        }
         return Promise.reject(error);
     }
 );

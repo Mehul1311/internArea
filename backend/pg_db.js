@@ -1,7 +1,9 @@
 const { Pool } = require('pg');
-const sqlite3 = require('sqlite3').verbose();
+let sqlite3;
+try { sqlite3 = require('sqlite3').verbose(); } catch (e) { console.warn('sqlite3 load failed:', e.message); }
 const path = require('path');
-const bcrypt = require('bcrypt');
+let bcrypt;
+try { bcrypt = require('bcrypt'); } catch (e) { console.warn('bcrypt load failed:', e.message); }
 require('dotenv').config();
 
 let useSQLite = false;
@@ -39,6 +41,10 @@ if (process.env.VERCEL || process.env.AWS_REGION) {
 }
 
 function initSQLite() {
+  if (!sqlite3) {
+    console.error("sqlite3 module is not loaded. Cannot use SQLite.");
+    return;
+  }
   sqliteDb = new sqlite3.Database(dbPath);
   console.log('Connected to embedded SQLite database at', dbPath);
   
@@ -336,6 +342,9 @@ function executeSQLite(sqlText, params = []) {
   return new Promise((resolve, reject) => {
     if (!sqliteDb) {
       initSQLite();
+    }
+    if (!sqliteDb) {
+      return reject(new Error("SQLite is not available. Please configure PostgreSQL using PG_DATABASE_URL."));
     }
 
     let normalizedSql = sqlText

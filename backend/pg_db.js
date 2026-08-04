@@ -40,211 +40,212 @@ if (process.env.VERCEL || process.env.AWS_REGION) {
   }
 }
 
+let initSQLitePromise = null;
+
 function initSQLite() {
   if (!sqlite3) {
     console.error("sqlite3 module is not loaded. Cannot use SQLite.");
-    return;
+    return Promise.reject(new Error("sqlite3 not loaded"));
   }
-  sqliteDb = new sqlite3.Database(dbPath);
-  console.log('Connected to embedded SQLite database at', dbPath);
   
-  sqliteDb.serialize(() => {
-    // Enable Foreign Keys
-    sqliteDb.run('PRAGMA foreign_keys = ON');
+  if (initSQLitePromise) return initSQLitePromise;
 
-    // Create Tables
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS roles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT UNIQUE NOT NULL
-    )`);
+  initSQLitePromise = new Promise((resolve, reject) => {
+    try {
+      sqliteDb = new sqlite3.Database(dbPath);
+      console.log('Connected to embedded SQLite database at', dbPath);
+      
+      sqliteDb.serialize(() => {
+        // Enable Foreign Keys
+        sqliteDb.run('PRAGMA foreign_keys = ON');
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      phone TEXT,
-      role_id INTEGER DEFAULT 1,
-      profile_picture TEXT,
-      resume_file_url TEXT,
-      preferred_language TEXT DEFAULT 'en',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-    
-    // Add column to existing local sqlite database if it doesn't have it yet
-    sqliteDb.run("ALTER TABLE users ADD COLUMN otp_verified_at DATETIME", (err) => {
-        // Will throw an error if column already exists, which we can safely ignore
-    });
+        // Create Tables
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS roles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT UNIQUE NOT NULL
+        )`);
 
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          phone TEXT,
+          role_id INTEGER DEFAULT 1,
+          profile_picture TEXT,
+          resume_file_url TEXT,
+          preferred_language TEXT DEFAULT 'en',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+        
+        sqliteDb.run("ALTER TABLE users ADD COLUMN otp_verified_at DATETIME", (err) => {});
 
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS companies (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          name TEXT NOT NULL,
+          description TEXT,
+          logo_url TEXT,
+          website TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS companies (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      name TEXT NOT NULL,
-      description TEXT,
-      logo_url TEXT,
-      website TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS internships (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          company_id INTEGER,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          location TEXT NOT NULL,
+          stipend TEXT NOT NULL,
+          duration TEXT NOT NULL,
+          category TEXT NOT NULL,
+          status TEXT DEFAULT 'open',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS internships (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      company_id INTEGER,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      location TEXT NOT NULL,
-      stipend TEXT NOT NULL,
-      duration TEXT NOT NULL,
-      category TEXT NOT NULL,
-      status TEXT DEFAULT 'open',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS jobs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          company_id INTEGER,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          location TEXT NOT NULL,
+          ctc TEXT NOT NULL,
+          experience TEXT NOT NULL,
+          category TEXT NOT NULL,
+          status TEXT DEFAULT 'open',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS jobs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      company_id INTEGER,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      location TEXT NOT NULL,
-      ctc TEXT NOT NULL,
-      experience TEXT NOT NULL,
-      category TEXT NOT NULL,
-      status TEXT DEFAULT 'open',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS applications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          internship_id INTEGER,
+          job_id INTEGER,
+          student_id INTEGER,
+          resume_url TEXT NOT NULL,
+          cover_letter TEXT,
+          status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS applications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      internship_id INTEGER,
-      job_id INTEGER,
-      student_id INTEGER,
-      resume_url TEXT NOT NULL,
-      cover_letter TEXT,
-      status TEXT DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          application_id INTEGER,
+          sender_id INTEGER,
+          content TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      application_id INTEGER,
-      sender_id INTEGER,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          message TEXT NOT NULL,
+          is_read INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      message TEXT NOT NULL,
-      is_read INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS plans (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          price REAL NOT NULL,
+          application_limit INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS plans (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      price REAL NOT NULL,
-      application_limit INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS subscriptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          plan_id INTEGER,
+          status TEXT DEFAULT 'active',
+          current_period_start DATETIME NOT NULL,
+          current_period_end DATETIME NOT NULL,
+          applications_used INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS subscriptions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      plan_id INTEGER,
-      status TEXT DEFAULT 'active',
-      current_period_start DATETIME NOT NULL,
-      current_period_end DATETIME NOT NULL,
-      applications_used INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          order_id TEXT,
+          payment_id TEXT,
+          amount REAL NOT NULL,
+          status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      order_id TEXT,
-      payment_id TEXT,
-      amount REAL NOT NULL,
-      status TEXT DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS resumes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          content TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS resume_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          order_id TEXT,
+          payment_id TEXT,
+          amount REAL NOT NULL,
+          status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS friends (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          friend_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS resumes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      content TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS posts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          content TEXT,
+          media_url TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS resume_payments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      order_id TEXT,
-      payment_id TEXT,
-      amount REAL NOT NULL,
-      status TEXT DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS likes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          post_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(post_id, user_id)
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS friends (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      friend_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS comments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          post_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          content TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS posts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      content TEXT,
-      media_url TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`CREATE TABLE IF NOT EXISTS shares (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          post_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS likes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      post_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(post_id, user_id)
-    )`);
+        // Add Performance Indexes
+        sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category)`);
+        sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location)`);
+        sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_internships_category ON internships(category)`);
+        sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_internships_location ON internships(location)`);
+        sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      post_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+        sqliteDb.run(`ALTER TABLE users ADD COLUMN resume_file_url TEXT`, (err) => {});
 
-    sqliteDb.run(`CREATE TABLE IF NOT EXISTS shares (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      post_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-
-
-    // Add Performance Indexes
-    sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_jobs_category ON jobs(category)`);
-    sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_jobs_location ON jobs(location)`);
-    sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_internships_category ON internships(category)`);
-    sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_internships_location ON internships(location)`);
-    sqliteDb.run(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
-
-    // Add resume_file_url to existing users if they don't have it
-    sqliteDb.run(`ALTER TABLE users ADD COLUMN resume_file_url TEXT`, (err) => {
-      // Ignore error if column already exists
-    });
-
-    seedSQLiteData();
+        seedSQLiteData(resolve);
+      });
+    } catch (err) {
+      reject(err);
+    }
   });
+
+  return initSQLitePromise;
 }
 
-function seedSQLiteData() {
+function seedSQLiteData(resolve) {
   // Roles
   sqliteDb.run("INSERT OR IGNORE INTO roles (id, name) VALUES (1, 'student'), (2, 'employer'), (3, 'admin')");
 
@@ -301,9 +302,13 @@ function seedSQLiteData() {
       // Sample Community Posts
       sqliteDb.run(`INSERT INTO posts (id, user_id, content, media_url) VALUES 
         (1, 1, 'Excited to start my journey learning Next.js and building cool projects on Internshala!', 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop'),
-        (2, 2, 'We are hiring Frontend and Data Science interns at Google! Check out our latest listings.', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop')`);
+        (2, 2, 'We are hiring Frontend and Data Science interns at Google! Check out our latest listings.', 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop')`, () => {
+          if (resolve) resolve();
+        });
 
       console.log('Initial SQLite database seeded with default users, companies, internships, jobs, friends & posts!');
+    } else {
+      if (resolve) resolve();
     }
   });
 }
@@ -339,9 +344,13 @@ function query(sqlText, params = []) {
 }
 
 function executeSQLite(sqlText, params = []) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     if (!sqliteDb) {
-      initSQLite();
+      try {
+        await initSQLite();
+      } catch (err) {
+        return reject(new Error("SQLite is not available: " + err.message));
+      }
     }
     if (!sqliteDb) {
       return reject(new Error("SQLite is not available. Please configure PostgreSQL using PG_DATABASE_URL."));

@@ -42,8 +42,8 @@ async function verifyToken(req, res, next) {
             const phone = req.query.phone || '';
 
             const newUser = await query(
-                'INSERT INTO users (username, role_id, phone) VALUES ($1, $2, $3) RETURNING id',
-                [email, roleId, phone]
+                'INSERT INTO users (username, role_id, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id',
+                [email, roleId, phone, 'google_auth_placeholder']
             );
             
             // If employer, auto-create company

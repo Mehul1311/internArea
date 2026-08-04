@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       exclude: ['error'],
     },
   },
-  serverExternalPackages: ['pg', 'sqlite3', 'firebase-admin', 'bcrypt'],
+  serverExternalPackages: ['pg', 'sqlite3', 'bcrypt'],
 };
 
 export default nextConfig;

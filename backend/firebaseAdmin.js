@@ -22,7 +22,7 @@ try {
   } else {
     // Attempt initialization with project ID for token verification (works without credentials in dev)
     app = initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'intern-clone'
+        projectId: process.env.FIREBASE_PROJECT_ID || 'internarea-7e417'
     });
     console.log("Firebase Admin initialized with fallback projectId.");
   }
@@ -30,7 +30,7 @@ try {
   console.error("Firebase Admin initialization error:", error.message);
   // Guarantee an app is initialized so getAuth() doesn't crash the entire auth flow
   app = initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID || 'intern-clone'
+    projectId: process.env.FIREBASE_PROJECT_ID || 'internarea-7e417'
   });
 }
 

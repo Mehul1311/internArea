@@ -80,7 +80,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || "Internal Server Error" });
 });
 
-if (!process.env.VERCEL) {
+if (require.main === module && !process.env.VERCEL) {
   server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
   });

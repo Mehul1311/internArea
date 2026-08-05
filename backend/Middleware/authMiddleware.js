@@ -1,8 +1,10 @@
 const { query } = require("../pg_db");
-const { auth } = require('../firebaseAdmin');
+const jwt = require("jsonwebtoken");
+
+const JWT_SECRET = process.env.JWT_SECRET || 'internshala_clone_secret_key_2026';
 
 /**
- * Verify Firebase ID Token
+ * Verify JWT Token
  */
 async function verifyToken(req, res, next) {
     try {
@@ -12,51 +14,28 @@ async function verifyToken(req, res, next) {
         }
 
         if (!token) {
-            return res.status(401).json({ error: "Access denied. No Firebase token provided." });
+            return res.status(401).json({ error: "Access denied. No token provided." });
         }
 
-        // Verify Firebase Token
         let decoded;
         try {
-            decoded = await auth.verifyIdToken(token);
-        } catch (fbErr) {
-            console.error("Firebase verify error:", fbErr.message);
-            return res.status(401).json({ error: "Invalid Firebase token.", expired: fbErr.code === 'auth/id-token-expired' });
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (jwtErr) {
+            console.error("JWT verify error:", jwtErr.message);
+            return res.status(401).json({ error: "Invalid token.", expired: jwtErr.name === 'TokenExpiredError' });
         }
         
-        const email = decoded.email || decoded.uid; // Fallback to uid if no email
+        const userId = decoded.id;
 
         let userRes = await query(`
             SELECT u.id, u.username, u.profile_picture, r.name as role 
             FROM users u
             JOIN roles r ON u.role_id = r.id
-            WHERE u.username = $1
-        `, [email]);
+            WHERE u.id = $1
+        `, [userId]);
 
-        // Auto-create user in Postgres if they signed up via Firebase but don't exist in DB
         if (userRes.rows.length === 0) {
-            let roleId = 1; // Default to student
-            if (req.query.role === 'employer') {
-                roleId = 2; // Employer role
-            }
-            const phone = req.query.phone || '';
-
-            const newUser = await query(
-                'INSERT INTO users (username, role_id, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id',
-                [email, roleId, phone, 'google_auth_placeholder']
-            );
-            
-            // If employer, auto-create company
-            if (roleId === 2) {
-                await query('INSERT INTO companies (user_id, name) VALUES ($1, $2)', [newUser.rows[0].id, email.split('@')[0] + "'s Company"]);
-            }
-
-            userRes = await query(`
-                SELECT u.id, u.username, u.profile_picture, r.name as role 
-                FROM users u
-                JOIN roles r ON u.role_id = r.id
-                WHERE u.id = $1
-            `, [newUser.rows[0].id]);
+            return res.status(404).json({ error: "User not found." });
         }
 
         req.user = userRes.rows[0];
@@ -82,5 +61,6 @@ function requireRoles(roles) {
 
 module.exports = {
     verifyToken,
-    requireRoles
+    requireRoles,
+    JWT_SECRET
 };

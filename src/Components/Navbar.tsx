@@ -7,8 +7,6 @@ import { toast } from "react-toastify";
 import { apiClient } from "@/api/axios";
 import { useSelector, useDispatch } from "react-redux";
 import { selectuser, logout } from "@/Feature/Userslice";
-import { auth } from "@/firebase/firebase";
-
 const Navbar = () => {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -71,10 +69,8 @@ const Navbar = () => {
     try {
       await apiClient.post('/auth/logout');
     } catch (e) {}
-    try {
-      await auth.signOut();
-    } catch (e) {}
     localStorage.removeItem('app_user');
+    localStorage.removeItem('jwt_token');
     localStorage.removeItem('access_token');
     dispatch(logout());
     setLocalUser(null);

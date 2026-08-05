@@ -10,21 +10,16 @@ export const apiClient = axios.create({
     withCredentials: true, // Crucial for sending/receiving HTTP-only cookies
 });
 
-import { auth } from '../firebase/firebase';
-
-// Request Interceptor to attach the Firebase token
+// Request Interceptor to attach the JWT token
 apiClient.interceptors.request.use(async (config) => {
     if (typeof window !== 'undefined') {
         try {
-            // Try getting the Firebase token if user is signed in
-            const currentUser = auth.currentUser;
-            if (currentUser) {
-                // Get token, forcing refresh if necessary
-                const token = await currentUser.getIdToken();
+            const token = localStorage.getItem('jwt_token');
+            if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
         } catch (e) {
-            console.error("Error attaching Firebase token", e);
+            console.error("Error attaching JWT token", e);
         }
     }
     return config;

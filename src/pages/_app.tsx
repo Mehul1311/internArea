@@ -5,7 +5,6 @@ import type { AppProps } from "next/app";
 import { store } from "../store/store";
 import { Provider, useDispatch } from "react-redux";
 import { useEffect } from "react";
-import { auth } from "@/firebase/firebase";
 import { login, logout } from "@/Feature/Userslice";
 import { apiClient } from "@/api/axios";
 import { ToastContainer } from 'react-toastify';
@@ -15,23 +14,21 @@ export default function App({ Component, pageProps }: AppProps) {
     const dispatch = useDispatch();
 
     useEffect(() => {
-      const syncBackendUser = async (authuser: any) => {
-        if (authuser) {
+      const syncBackendUser = async () => {
+        const token = localStorage.getItem('jwt_token');
+        if (token) {
           try {
-            // Because axios interceptor automatically attaches the Firebase token,
-            // this call will verify the Firebase token on the backend, 
-            // auto-create the user in Postgres if missing, and return the Postgres ID.
             const res = await apiClient.get('/auth/me');
             if (res.data) {
               const userData = {
-                id: res.data.id, // Important: This is the Integer Postgres ID
+                id: res.data.id,
                 uid: res.data.id,
                 username: res.data.username,
                 email: res.data.username,
-                name: authuser.displayName || res.data.username?.split('@')[0],
-                phone: res.data.phone || authuser.phoneNumber,
+                name: res.data.username?.split('@')[0],
+                phone: res.data.phone,
                 role_id: res.data.role_id,
-                photo: authuser.photoURL || res.data.profile_picture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop"
+                photo: res.data.profile_picture || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop"
               };
               localStorage.setItem('app_user', JSON.stringify(userData));
               dispatch(login(userData));
@@ -40,6 +37,7 @@ export default function App({ Component, pageProps }: AppProps) {
             console.error("Failed to sync backend user:", err);
             dispatch(logout());
             localStorage.removeItem('app_user');
+            localStorage.removeItem('jwt_token');
           }
         } else {
           dispatch(logout());
@@ -55,12 +53,7 @@ export default function App({ Component, pageProps }: AppProps) {
         } catch (e) {}
       }
 
-      const unsubscribe = auth.onAuthStateChanged((authuser) => {
-        // Automatically sync with backend when Firebase auth state changes
-        syncBackendUser(authuser);
-      });
-
-      return () => unsubscribe();
+      syncBackendUser();
     }, [dispatch]);
 
     return null;

@@ -22,7 +22,6 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.1",
     "express-validator": "^7.3.2",
-    "firebase-admin": "^11.11.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.477.0",

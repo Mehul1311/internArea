@@ -10,6 +10,7 @@ export const config = {
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const app = require('../../../backend/index.js');
+    console.log("Next.js received:", req.method, req.url);
     return app(req, res);
   } catch (error: any) {
     console.error("API Route Init Error:", error);

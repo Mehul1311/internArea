@@ -19,6 +19,9 @@ const port = process.env.PORT || 5050;
 // Initialize Socket.io
 initSocket(server);
 
+// Trust proxy for rate limiting behind Next.js API route / Vercel
+app.set('trust proxy', 1);
+
 // Compress responses
 app.use(compression());
 

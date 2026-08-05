@@ -20,7 +20,7 @@ try {
   useSQLite = true;
 }
 
-let dbPath = path.join(process.cwd(), 'backend', 'internshala.sqlite');
+let dbPath = path.join(process.cwd(), process.cwd().endsWith('backend') ? '' : 'backend', 'internshala.sqlite');
 
 if (process.env.VERCEL || process.env.AWS_REGION) {
   const fs = require('fs');

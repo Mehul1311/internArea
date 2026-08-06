@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import app from '../../../backend/index.js';
 
 export const config = {
   api: {
@@ -9,7 +10,6 @@ export const config = {
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const app = require('../../../backend/index.js');
     console.log("Next.js received:", req.method, req.url);
     return app(req, res);
   } catch (error: any) {

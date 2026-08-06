@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
-let sqlite3;
-try { sqlite3 = require('sqlite3').verbose(); } catch (e) { console.warn('sqlite3 load failed:', e.message); }
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 let bcrypt;
 try { bcrypt = require('bcrypt'); } catch (e) { console.warn('bcrypt load failed:', e.message); }

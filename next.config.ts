@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ['pg', 'sqlite3', 'bcrypt'],
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./backend/internshala.sqlite'],
+  },
 };
 
 export default nextConfig;

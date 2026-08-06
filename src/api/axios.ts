@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '/api' : 'http://localhost:5050/api');
+const getBaseUrl = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    if (typeof window !== 'undefined') return '/api';
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}/api`;
+    return 'http://localhost:3000/api'; // Changed from 5050 to 3000 since Next.js API routes run on 3000
+};
+
+const BASE_URL = getBaseUrl();
 
 export const apiClient = axios.create({
     baseURL: BASE_URL,

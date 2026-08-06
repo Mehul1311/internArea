@@ -21,6 +21,21 @@ try {
 }
 
 let dbPath = path.join(process.cwd(), process.cwd().endsWith('backend') ? '' : 'backend', 'internshala.sqlite');
+const possiblePaths = [
+  path.join(process.cwd(), 'backend', 'internshala.sqlite'),
+  path.join(process.cwd(), 'internshala.sqlite'),
+  path.join(__dirname, 'internshala.sqlite'),
+  path.join(__dirname, '..', 'internshala.sqlite'),
+  path.join('/var/task/backend/internshala.sqlite'),
+  dbPath
+];
+
+for (const p of possiblePaths) {
+  if (require('fs').existsSync(p)) {
+    dbPath = p;
+    break;
+  }
+}
 
 if (process.env.VERCEL || process.env.AWS_REGION) {
   const fs = require('fs');

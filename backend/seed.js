@@ -51,11 +51,11 @@ async function seedData() {
       companyIds.push(res.rows[0].id);
     }
 
-    // 2. Insert 500 Internships
-    console.log('Generating 500 Internships...');
-    for (let i = 0; i < 500; i++) {
+    // 2. Insert 100 Internships
+    console.log('Generating 100 Internships...');
+    for (let i = 0; i < 100; i++) {
       const category = getRandomElement(jobCategories);
-      const title = `${category} Intern - Level ${getRandomInt(3) + 1}`;
+      const title = `${category} Intern - Level ${getRandomInt(3) + 1} (${Math.random().toString(36).substring(7)})`;
       const desc = `Join our exciting team as a ${category} intern. You will work on cutting-edge projects, learn from industry experts, and contribute to our core products. This is a great opportunity to jumpstart your career in ${category}.`;
       const loc = getRandomElement(locations);
       const stip = generateStipend();
@@ -67,14 +67,14 @@ async function seedData() {
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')`,
         [compId, title, desc, loc, stip, dur, category]
       );
-      if ((i + 1) % 100 === 0) console.log(`Inserted ${i + 1} internships...`);
+      if ((i + 1) % 20 === 0) console.log(`Inserted ${i + 1} internships...`);
     }
 
-    // 3. Insert 500 Jobs
-    console.log('Generating 500 Jobs...');
-    for (let i = 0; i < 500; i++) {
+    // 3. Insert 100 Jobs
+    console.log('Generating 100 Jobs...');
+    for (let i = 0; i < 100; i++) {
       const category = getRandomElement(jobCategories);
-      const title = `Senior ${category} Specialist`;
+      const title = `Senior ${category} Specialist (${Math.random().toString(36).substring(7)})`;
       const desc = `We are looking for an experienced ${category} professional to join our fast-growing company. You will take ownership of major projects, mentor junior team members, and drive our strategic goals forward.`;
       const loc = getRandomElement(locations);
       const ctc = generateCTC();
@@ -86,10 +86,10 @@ async function seedData() {
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')`,
         [compId, title, desc, loc, ctc, exp, category]
       );
-      if ((i + 1) % 100 === 0) console.log(`Inserted ${i + 1} jobs...`);
+      if ((i + 1) % 20 === 0) console.log(`Inserted ${i + 1} jobs...`);
     }
 
-    console.log('Successfully seeded 1000 static jobs and internships!');
+    console.log('Successfully seeded 200 static jobs and internships!');
     process.exit(0);
   } catch (err) {
     console.error('Error seeding data:', err);
